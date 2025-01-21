@@ -1,0 +1,21 @@
+FROM archlinux/archlinux:multilib-devel
+
+RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
+RUN pacman -Syu --noconfirm
+RUN pacman -S --noconfirm \
+  git llvm clang rustup vim
+
+ENV USER=user
+
+RUN groupadd $USER
+RUN useradd -u 1001 -g $USER -G root -s /bin/bash $USER
+RUN mkdir -p /home/$USER
+RUN chown $USER:$USER /home/$USER
+RUN echo "$USER ALL=(ALL) NOPASSWD:ALL" >>/etc/sudoers
+
+
+USER $USER
+WORKDIR /home/$USER
+
+RUN rustup default stable
+WORKDIR /home/$USER/PKGBUILDs/

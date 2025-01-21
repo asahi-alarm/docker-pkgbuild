@@ -1,0 +1,30 @@
+FROM menci/archlinuxarm:base-devel AS builder
+
+RUN echo 'Server = http://eu.mirror.archlinuxarm.org/$arch/$repo' > /etc/pacman.d/mirrorlist
+RUN rm -rf /etc/pacman.d/gnupg/* && pacman-key --init
+RUN echo "allow-weak-key-signatures" >> /etc/pacman.d/gnupg/gpg.conf
+RUN pacman-key --populate archlinuxarm
+RUN pacman -Syy --noconfirm archlinuxarm-keyring
+RUN sed -i -e 's~#IgnorePkg.*~IgnorePkg = filesystem~g' '/etc/pacman.conf'
+RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
+RUN sed -i 's/-Wl,-z,pack-relative-relocs//' /etc/makepkg.conf
+RUN pacman -Syu --noconfirm
+RUN pacman -S --noconfirm \
+  git llvm clang rustup vim
+# fix a bug in gcc-libs that breaks building FEX
+RUN sed -i 's/\+\+this/++*this/' /usr/include/c++/14.1.1/bits/unicode.h
+
+ENV USER=user
+
+RUN groupadd $USER
+RUN useradd -u 1001 -g $USER -G root -s /bin/bash $USER
+RUN mkdir -p /home/$USER
+RUN chown $USER:$USER /home/$USER
+RUN echo "$USER ALL=(ALL) NOPASSWD:ALL" >>/etc/sudoers
+
+
+USER $USER
+WORKDIR /home/$USER
+
+RUN rustup default stable
+WORKDIR /home/$USER/PKGBUILDs/
