@@ -3,7 +3,9 @@ FROM archlinux/archlinux:multilib-devel
 RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
 RUN pacman -Syu --noconfirm
 RUN pacman -S --noconfirm \
-  git llvm clang rustup vim
+  git llvm clang rustup vim \
+  'lib32-llvm' 'lib32-llvm-libs' 'lib32-libpciaccess' 'lib32-libglvnd' 'lib32-libxrandr' 'lib32-spirv-tools' \
+  'lib32-spirv-llvm-translator' 'lib32-clang' 'lib32-libxfixes' 'lib32-libvdpau' 'lib32-libva' 'lib32-xcb-util-keysyms'
 
 ENV USER=user
 
