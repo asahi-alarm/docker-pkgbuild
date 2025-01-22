@@ -4,7 +4,7 @@ RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.con
 RUN sed -i 's/.pkg.tar.zst/.pkg.tar.xz/' /etc/makepkg.conf
 RUN pacman -Syu --noconfirm
 RUN pacman -S --noconfirm \
-  git llvm clang rustup vim \
+  git llvm clang rustup vim github-cli \
   'lib32-llvm' 'lib32-llvm-libs' 'lib32-libpciaccess' 'lib32-libglvnd' 'lib32-libxrandr' 'lib32-spirv-tools' \
   'lib32-spirv-llvm-translator' 'lib32-clang' 'lib32-libxfixes' 'lib32-libvdpau' 'lib32-libva' 'lib32-xcb-util-keysyms'
 

@@ -10,7 +10,7 @@ RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.con
 RUN sed -i 's/-Wl,-z,pack-relative-relocs//' /etc/makepkg.conf
 RUN pacman -Syu --noconfirm
 RUN pacman -S --noconfirm \
-  git llvm clang rustup vim
+  git llvm clang rustup vim github-cli
 # fix a bug in gcc-libs that breaks building FEX
 RUN sed -i 's/\+\+this/++*this/' /usr/include/c++/14.1.1/bits/unicode.h
 
