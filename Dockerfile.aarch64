@@ -9,16 +9,17 @@ RUN sed -i -e 's~#IgnorePkg.*~IgnorePkg = filesystem~g' '/etc/pacman.conf'
 RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
 RUN sed -i 's/-Wl,-z,pack-relative-relocs//' /etc/makepkg.conf
 RUN pacman -Syu --noconfirm
-RUN pacman -S --noconfirm \
-  git llvm clang rustup vim github-cli
-# fix a bug in gcc-libs that breaks building FEX
-RUN sed -i 's/\+\+this/++*this/' /usr/include/c++/14.1.1/bits/unicode.h
 
 # setup asahi-alarm repository
 RUN pacman-key --recv-keys 12CE6799A94A3F1B5DDFFE88F576553597FB8FEB && pacman-key --lsign-key 12CE6799A94A3F1B5DDFFE88F576553597FB8FEB
 RUN echo 'Server = https://github.com/asahi-alarm/asahi-alarm/releases/download/$arch' > /etc/pacman.d/mirrorlist.asahi-alarm
-RUN echo -e '[asahi-alarm]\nInclude = /etc/pacman.d/mirrorlist.asahi-alarm' >> /etc/pacman.conf
+RUN sed -i -e '/\[core\]/i [asahi-alarm]\nInclude = /etc/pacman.d/mirrorlist.asahi-alarm\n' /etc/pacman.conf
 RUN pacman -Sy --noconfirm asahi-alarm-keyring
+
+RUN pacman -S --noconfirm \
+  git llvm clang rustup vim github-cli
+# fix a bug in gcc-libs that breaks building FEX
+RUN sed -i 's/\+\+this/++*this/' /usr/include/c++/14.1.1/bits/unicode.h
 
 ENV USER=user
 
