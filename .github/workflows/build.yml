@@ -1,0 +1,13 @@
+name: build
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: build and publish the images
+        id: store
+        run: |
+          echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          make push
