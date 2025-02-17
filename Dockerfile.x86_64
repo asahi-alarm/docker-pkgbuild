@@ -1,6 +1,7 @@
 FROM archlinux/archlinux:multilib-devel
 
 RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
+RUN sed -i -e 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf
 RUN pacman -Syu --noconfirm
 RUN pacman -S --noconfirm \
   git llvm clang rustup vim github-cli \
