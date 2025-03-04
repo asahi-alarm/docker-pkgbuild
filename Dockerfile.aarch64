@@ -8,7 +8,6 @@ RUN pacman -Syy --noconfirm archlinuxarm-keyring
 RUN sed -i -e 's~#IgnorePkg.*~IgnorePkg = filesystem~g' '/etc/pacman.conf'
 RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
 RUN sed -i -e 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf
-RUN sed -i 's/-Wl,-z,pack-relative-relocs//' /etc/makepkg.conf
 RUN pacman -Syu --noconfirm
 
 # setup asahi-alarm repository
