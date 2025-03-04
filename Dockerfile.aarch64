@@ -18,8 +18,6 @@ RUN pacman -Sy --noconfirm asahi-alarm-keyring
 
 RUN pacman -S --noconfirm \
   git llvm clang rustup vim github-cli
-# fix a bug in gcc-libs that breaks building FEX
-RUN sed -i 's/\+\+this/++*this/' /usr/include/c++/14.1.1/bits/unicode.h
 
 ENV USER=user
 
