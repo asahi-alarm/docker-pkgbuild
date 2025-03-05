@@ -17,7 +17,7 @@ RUN sed -i -e '/\[core\]/i [asahi-alarm]\nInclude = /etc/pacman.d/mirrorlist.asa
 RUN pacman -Sy --noconfirm asahi-alarm-keyring
 
 RUN pacman -S --noconfirm \
-  git llvm clang rustup vim github-cli
+  git llvm clang rustup vim github-cli python
 
 ENV USER=user
 
