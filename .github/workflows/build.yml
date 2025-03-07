@@ -1,15 +1,29 @@
 name: build
 on:
+  schedule:
+    - cron: "0 0 * * 1"
   workflow_dispatch:
 jobs:
-  build:
-    name: build
-    runs-on: ubuntu-latest
+  x86_64:
+    name: x86_64
+    runs-on: ubuntu-24.04
+    if: false
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
-      - name: build and publish the images
-        id: store
+        uses: actions/checkout@v4
+      - name: build and publish the x86_64 image
         run: |
           echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
-          make push
+          docker build --no-cache --platform=linux/amd64 -f Dockerfile.x86_64 -t josdehaes/asahi-alarm-pkgbuild-mesa:latest .
+          docker push josdehaes/asahi-alarm-pkgbuild-mesa:latest
+  aarch64:
+    name: aarch64
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: build and publish the aarch64 image
+        run: |
+          echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+          docker build --no-cache --platform=linux/arm64 -f Dockerfile.aarch64 -t josdehaes/asahi-alarm-pkgbuild:latest .
+          docker push josdehaes/asahi-alarm-pkgbuild:latest
