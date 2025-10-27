@@ -1,10 +1,16 @@
-FROM menci/archlinuxarm:base-devel AS builder
+FROM scratch
 
-RUN echo 'Server = http://eu.mirror.archlinuxarm.org/$arch/$repo' > /etc/pacman.d/mirrorlist
-RUN rm -rf /etc/pacman.d/gnupg/* && pacman-key --init
-RUN echo "allow-weak-key-signatures" >> /etc/pacman.d/gnupg/gpg.conf
-RUN pacman-key --populate archlinuxarm
-RUN pacman -Syy --noconfirm archlinuxarm-keyring
+ADD ../asahi-alarm-builder/dl/arch-aarch64.tgz
+
+# RUN rm -rf /etc/pacman.d/gnupg/* && pacman-key --init
+# RUN echo "allow-weak-key-signatures" >> /etc/pacman.d/gnupg/gpg.conf
+RUN pacman-key --populate archlinux
+
+# trust drzee key
+COPY public.key /tmp/
+RUN pacman-key --add /tmp/public.key && pacman-key lsign 9B2C213B21883BB65CE2FB900CF25682E6BA0751
+
+RUN pacman -Syy --noconfirm archlinux-keyring
 RUN sed -i -e 's~#IgnorePkg.*~IgnorePkg = filesystem~g' '/etc/pacman.conf'
 RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
 RUN sed -i -e 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf
