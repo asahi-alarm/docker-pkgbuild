@@ -1,6 +1,6 @@
 FROM menci/archlinuxarm:base-devel AS builder
 
-RUN echo 'Server = http://eu.mirror.archlinuxarm.org/$arch/$repo' > /etc/pacman.d/mirrorlist
+RUN echo 'Server = http://de.mirror.archlinuxarm.org/$arch/$repo' > /etc/pacman.d/mirrorlist
 RUN rm -rf /etc/pacman.d/gnupg/* && pacman-key --init
 RUN echo "allow-weak-key-signatures" >> /etc/pacman.d/gnupg/gpg.conf
 RUN pacman-key --populate archlinuxarm
