@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: build and publish the x86_64 image
         run: |
           echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
@@ -20,12 +20,117 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: build and publish the aarch64 image
         run: |
           echo "${{ secrets.DOCKER_PAT }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
           docker build --no-cache --platform=linux/arm64 -f Dockerfile.aarch64 -t josdehaes/asahi-alarm-pkgbuild:latest .
           docker push josdehaes/asahi-alarm-pkgbuild:latest
+  check-rebuild:
+    name: check if package rebuilds are needed
+    runs-on: ubuntu-24.04-arm
+    needs: [aarch64]
+    permissions:
+      contents: write
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v6
+      - name: Get dependency versions from fresh image
+        id: versions
+        run: |
+          docker pull josdehaes/asahi-alarm-pkgbuild:latest
+          VERSIONS=$(docker run --rm josdehaes/asahi-alarm-pkgbuild:latest pacman -Q llvm-libs python icu 2>/dev/null)
+          LLVM=$(echo "$VERSIONS" | awk '/^llvm-libs /{print $2}' | cut -d. -f1)
+          PYTHON=$(echo "$VERSIONS" | awk '/^python /{print $2}' | cut -d. -f1,2)
+          ICU=$(echo "$VERSIONS" | awk '/^icu /{print $2}' | cut -d. -f1)
+          echo "llvm=$LLVM"
+          echo "python=$PYTHON"
+          echo "icu=$ICU"
+          echo "llvm=$LLVM" >> "$GITHUB_OUTPUT"
+          echo "python=$PYTHON" >> "$GITHUB_OUTPUT"
+          echo "icu=$ICU" >> "$GITHUB_OUTPUT"
+      - name: Compare versions and trigger rebuilds
+        env:
+          GH_TOKEN: ${{ secrets.PKGBUILDS_TOKEN }}
+        run: |
+          REBUILD_PACKAGES=""
+
+          # Load previous versions
+          PREV_LLVM=""
+          PREV_PYTHON=""
+          PREV_ICU=""
+          if [ -f versions.txt ]; then
+            PREV_LLVM=$(grep '^PREV_LLVM=' versions.txt | cut -d= -f2)
+            PREV_PYTHON=$(grep '^PREV_PYTHON=' versions.txt | cut -d= -f2)
+            PREV_ICU=$(grep '^PREV_ICU=' versions.txt | cut -d= -f2)
+          fi
+
+          # Check LLVM -> mesa, virglrenderer
+          if [ "${{ steps.versions.outputs.llvm }}" != "$PREV_LLVM" ]; then
+            echo "LLVM changed: ${PREV_LLVM:-unknown} -> ${{ steps.versions.outputs.llvm }}"
+            REBUILD_PACKAGES="mesa virglrenderer"
+          fi
+
+          # Check Python -> calamares
+          if [ "${{ steps.versions.outputs.python }}" != "$PREV_PYTHON" ]; then
+            echo "Python changed: ${PREV_PYTHON:-unknown} -> ${{ steps.versions.outputs.python }}"
+            REBUILD_PACKAGES="$REBUILD_PACKAGES calamares"
+          fi
+
+          # Check ICU -> calamares
+          if [ "${{ steps.versions.outputs.icu }}" != "$PREV_ICU" ]; then
+            echo "ICU changed: ${PREV_ICU:-unknown} -> ${{ steps.versions.outputs.icu }}"
+            if [[ ! "$REBUILD_PACKAGES" =~ calamares ]]; then
+              REBUILD_PACKAGES="$REBUILD_PACKAGES calamares"
+            fi
+          fi
+
+          REBUILD_PACKAGES=$(echo "$REBUILD_PACKAGES" | xargs)
+
+          if [ -n "$REBUILD_PACKAGES" ]; then
+            echo "Bumping pkgrel and triggering rebuild for: $REBUILD_PACKAGES"
+
+            # Clone PKGBUILDs, bump pkgrel, push
+            git clone --depth 1 https://x-access-token:${GH_TOKEN}@github.com/asahi-alarm/PKGBUILDs.git /tmp/PKGBUILDs
+            cd /tmp/PKGBUILDs
+            git config user.email "action@github.com"
+            git config user.name "GitHub Action"
+
+            for pkg in $REBUILD_PACKAGES; do
+              if [ -f "$pkg/PKGBUILD" ]; then
+                # Increment pkgrel
+                OLD_REL=$(grep '^pkgrel=' "$pkg/PKGBUILD" | cut -d= -f2)
+                NEW_REL=$((OLD_REL + 1))
+                sed -i "s/^pkgrel=.*/pkgrel=$NEW_REL/" "$pkg/PKGBUILD"
+                echo "$pkg: pkgrel $OLD_REL -> $NEW_REL"
+                git add "$pkg/PKGBUILD"
+              fi
+            done
+
+            git commit -m "bump pkgrel for rebuild ($REBUILD_PACKAGES)"
+            git push
+
+            # Trigger the build workflow
+            gh workflow run build.yml --repo asahi-alarm/PKGBUILDs -f packages="$REBUILD_PACKAGES"
+          else
+            echo "No version changes detected, no rebuild needed"
+          fi
+
+          # Save current versions
+          cd "$GITHUB_WORKSPACE"
+          printf '%s\n' \
+            "PREV_LLVM=${{ steps.versions.outputs.llvm }}" \
+            "PREV_PYTHON=${{ steps.versions.outputs.python }}" \
+            "PREV_ICU=${{ steps.versions.outputs.icu }}" \
+            > versions.txt
+      - name: Commit updated versions
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add versions.txt
+          git diff-index --quiet HEAD || git commit -m "Update tracked dependency versions"
+          git pull --rebase
+          git push
   workflow-keepalive:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest
