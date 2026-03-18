@@ -66,9 +66,11 @@ jobs:
           fi
 
           # Check LLVM -> mesa, virglrenderer
+          LLVM_CHANGED=false
           if [ "${{ steps.versions.outputs.llvm }}" != "$PREV_LLVM" ]; then
             echo "LLVM changed: ${PREV_LLVM:-unknown} -> ${{ steps.versions.outputs.llvm }}"
             REBUILD_PACKAGES="mesa virglrenderer"
+            LLVM_CHANGED=true
           fi
 
           # Check Python -> calamares
@@ -112,6 +114,11 @@ jobs:
 
             # Trigger the build workflow
             gh workflow run build.yml --repo asahi-alarm/PKGBUILDs -f packages="$REBUILD_PACKAGES"
+
+            # Trigger RootFS rebuild if LLVM changed (mesa rebuild)
+            if [ "$LLVM_CHANGED" = "true" ]; then
+              gh workflow run manual.yml --repo asahi-alarm/RootFS --ref asahi-alarm
+            fi
           else
             echo "No version changes detected, no rebuild needed"
           fi
