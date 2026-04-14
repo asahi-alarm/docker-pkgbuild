@@ -49,6 +49,30 @@ jobs:
           echo "llvm=$LLVM" >> "$GITHUB_OUTPUT"
           echo "python=$PYTHON" >> "$GITHUB_OUTPUT"
           echo "icu=$ICU" >> "$GITHUB_OUTPUT"
+      - name: Check for broken shared libraries
+        id: ldd-check
+        run: |
+          # Check if calamares has any broken shared library links (soname bumps)
+          # Run as root since the container defaults to unprivileged user
+          RESULT=$(docker run --rm --user root josdehaes/asahi-alarm-pkgbuild:latest sh -c '
+            if ! pacman --noconfirm -Sy calamares 2>&1; then
+              echo "INSTALL_FAILED"
+              exit 0
+            fi
+            ldd /usr/bin/calamares 2>&1 | grep "not found" || echo "ALL_OK"
+          ')
+          if echo "$RESULT" | grep -q "INSTALL_FAILED"; then
+            echo "Calamares package failed to install"
+            echo "$RESULT"
+            echo "needs_rebuild=true" >> "$GITHUB_OUTPUT"
+          elif echo "$RESULT" | grep -q "ALL_OK"; then
+            echo "Calamares library links OK"
+            echo "needs_rebuild=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Calamares has broken library links:"
+            echo "$RESULT"
+            echo "needs_rebuild=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: Compare versions and trigger rebuilds
         env:
           GH_TOKEN: ${{ secrets.PKGBUILDS_TOKEN }}
@@ -57,12 +81,8 @@ jobs:
 
           # Load previous versions
           PREV_LLVM=""
-          PREV_PYTHON=""
-          PREV_ICU=""
           if [ -f versions.txt ]; then
             PREV_LLVM=$(grep '^PREV_LLVM=' versions.txt | cut -d= -f2)
-            PREV_PYTHON=$(grep '^PREV_PYTHON=' versions.txt | cut -d= -f2)
-            PREV_ICU=$(grep '^PREV_ICU=' versions.txt | cut -d= -f2)
           fi
 
           # Check LLVM -> mesa, virglrenderer
@@ -73,18 +93,10 @@ jobs:
             LLVM_CHANGED=true
           fi
 
-          # Check Python -> calamares
-          if [ "${{ steps.versions.outputs.python }}" != "$PREV_PYTHON" ]; then
-            echo "Python changed: ${PREV_PYTHON:-unknown} -> ${{ steps.versions.outputs.python }}"
+          # Check calamares for broken shared library links
+          if [ "${{ steps.ldd-check.outputs.needs_rebuild }}" = "true" ]; then
+            echo "Calamares needs rebuild due to broken library links"
             REBUILD_PACKAGES="$REBUILD_PACKAGES calamares"
-          fi
-
-          # Check ICU -> calamares
-          if [ "${{ steps.versions.outputs.icu }}" != "$PREV_ICU" ]; then
-            echo "ICU changed: ${PREV_ICU:-unknown} -> ${{ steps.versions.outputs.icu }}"
-            if [[ ! "$REBUILD_PACKAGES" =~ calamares ]]; then
-              REBUILD_PACKAGES="$REBUILD_PACKAGES calamares"
-            fi
           fi
 
           REBUILD_PACKAGES=$(echo "$REBUILD_PACKAGES" | xargs)
@@ -127,8 +139,6 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           printf '%s\n' \
             "PREV_LLVM=${{ steps.versions.outputs.llvm }}" \
-            "PREV_PYTHON=${{ steps.versions.outputs.python }}" \
-            "PREV_ICU=${{ steps.versions.outputs.icu }}" \
             > versions.txt
       - name: Commit updated versions
         run: |
