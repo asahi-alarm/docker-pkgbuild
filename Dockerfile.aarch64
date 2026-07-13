@@ -1,13 +1,13 @@
 FROM menci/archlinuxarm:base-devel AS builder
 
 # RUN echo 'Server = http://de.mirror.archlinuxarm.org/$arch/$repo' > /etc/pacman.d/mirrorlist
+RUN sed -i -e 's/^#DisableSandboxFilesystem/DisableSandboxFilesystem/' /etc/pacman.conf
 RUN rm -rf /etc/pacman.d/gnupg/* && pacman-key --init
 RUN echo "allow-weak-key-signatures" >> /etc/pacman.d/gnupg/gpg.conf
 RUN pacman-key --populate archlinuxarm
 RUN pacman -Syy --noconfirm archlinuxarm-keyring
 RUN sed -i -e 's~#IgnorePkg.*~IgnorePkg = filesystem~g' '/etc/pacman.conf'
 RUN sed -i -e 's/^#ParallelDownloads = 5/ParallelDownloads = 5/' /etc/pacman.conf
-RUN sed -i -e 's/^#DisableSandbox/DisableSandbox/' /etc/pacman.conf
 RUN pacman -Syu --noconfirm
 
 # setup asahi-alarm repository
@@ -17,7 +17,7 @@ RUN sed -i -e '/\[core\]/i [asahi-alarm]\nInclude = /etc/pacman.d/mirrorlist.asa
 RUN pacman -Sy --noconfirm asahi-alarm-keyring
 
 RUN pacman -S --noconfirm \
-  git llvm clang rustup vim github-cli python
+    git llvm clang rustup vim github-cli python
 
 ENV USER=user
 
