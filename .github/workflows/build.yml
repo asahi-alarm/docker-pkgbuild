@@ -1,7 +1,8 @@
 name: build
 on:
   schedule:
-    - cron: "0 0 * * 1"
+    - cron: "0 6 * * 1"
+      timezone: "Europe/Brussels"
   workflow_dispatch:
 jobs:
   x86_64:
